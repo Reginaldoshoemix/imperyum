@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>IMPERYUM — Administração</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -503,15 +504,15 @@ tr:hover td:first-child { border-left-color: var(--gold); }
     <div class="login-logo">IMPERYUM</div>
     <div class="login-sub">Sistema de Administração</div>
     <div class="field">
-      <label>Usuário</label>
-      <input type="text" id="login-user" placeholder="seu nome de usuário" autocomplete="username">
+      <label>Email</label>
+      <input type="email" id="login-user" placeholder="seu@email.com" autocomplete="email">
     </div>
     <div class="field">
       <label>Senha</label>
       <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password">
     </div>
     <button class="btn-primary" onclick="doLogin()">Entrar</button>
-    <div class="login-error" id="login-error">Usuário ou senha incorretos.</div>
+    <div class="login-error" id="login-error">Email ou senha incorretos.</div>
   </div>
 </div>
 
@@ -1562,13 +1563,17 @@ tr:hover td:first-child { border-left-color: var(--gold); }
 const SUPA_URL = 'https://xrhozojyfbixxadqrtzu.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhyaG96b2p5ZmJpeHhhZHFydHp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxODQ0NDgsImV4cCI6MjEwMDc2MDQ0OH0.eJPN7WAAU0QyoIKwmUbW3aDZMFAyNVJHFoyeyupHtyY';
 
+const _sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
 async function supa(table, method = 'GET', body = null, query = '') {
   const url = `${SUPA_URL}/rest/v1/${table}${query}`;
+  const session = await _sb.auth.getSession();
+  const token = session?.data?.session?.access_token || SUPA_KEY;
   const opts = {
     method,
     headers: {
       'apikey': SUPA_KEY,
-      'Authorization': `Bearer ${SUPA_KEY}`,
+      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
       'Prefer': 'return=representation'
     }
@@ -1668,39 +1673,44 @@ function statusBadge(status) {
 }
 
 /* ══════════════════════════════════════════════════════════
-   AUTH — Supabase
+   AUTH — Supabase Auth
 ══════════════════════════════════════════════════════════ */
 
 let currentUser = null;
 
-// Usuários válidos (mantidos simples para sistema interno de dois sócios)
-const USUARIOS = [
-  { username: 'socio1', password: 'imperyum2024', nome: 'Sócio 1' },
-  { username: 'socio2', password: 'imperyum2024', nome: 'Sócio 2' }
-];
+const NOMES = {
+  'reginaldodorisso@gmail.com': 'Reginaldo',
+  'joao_pedro_660@hotmail.com': 'João Pedro'
+};
 
 async function doLogin() {
-  const user = document.getElementById('login-user').value.trim();
-  const pass = document.getElementById('login-pass').value;
-  const found = USUARIOS.find(u => u.username === user && u.password === pass);
-  if (!found) {
-    document.getElementById('login-error').style.display = 'block';
+  const email = document.getElementById('login-user').value.trim();
+  const pass  = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-error');
+  errEl.style.display = 'none';
+
+  const { data, error } = await _sb.auth.signInWithPassword({ email, password: pass });
+
+  if (error || !data.user) {
+    errEl.style.display = 'block';
     return;
   }
-  currentUser = found;
-  sessionStorage.setItem('imp_user', JSON.stringify(found));
+
+  currentUser = { email: data.user.email, nome: NOMES[data.user.email] || data.user.email };
   showApp();
 }
 
 document.getElementById('login-user').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('login-pass').focus(); });
 document.getElementById('login-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 
-function doLogout() {
+async function doLogout() {
+  await _sb.auth.signOut();
   currentUser = null;
   clearCache();
-  sessionStorage.removeItem('imp_user');
   document.getElementById('screen-app').style.display = 'none';
   document.getElementById('screen-login').style.display = 'flex';
+  document.getElementById('login-user').value = '';
+  document.getElementById('login-pass').value = '';
 }
 
 function showApp() {
@@ -3019,16 +3029,23 @@ function deleteOrdem(id) {
    INICIALIZAÇÃO
 ══════════════════════════════════════════════════════════ */
 
-(function init() {
-  const saved = sessionStorage.getItem('imp_user');
-  if (saved) {
-    try {
-      currentUser = JSON.parse(saved);
-      showApp();
-    } catch(e) {
-      sessionStorage.removeItem('imp_user');
-    }
+(async function init() {
+  const { data } = await _sb.auth.getSession();
+  if (data?.session?.user) {
+    const email = data.session.user.email;
+    currentUser = { email, nome: NOMES[email] || email };
+    showApp();
   }
+
+  // Escutar mudanças de sessão
+  _sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT') {
+      currentUser = null;
+      clearCache();
+      document.getElementById('screen-app').style.display = 'none';
+      document.getElementById('screen-login').style.display = 'flex';
+    }
+  });
 })();
 </script>
 </body>
