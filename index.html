@@ -588,6 +588,11 @@ tr:hover td:first-child { border-left-color: var(--gold); }
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
           Produção e Fornecedores
         </div>
+        <div class="nav-item" onclick="navigate('nfe')" data-page="nfe">
+          <div class="nav-item-bar"></div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          Notas Fiscais
+        </div>
       </div>
       <div class="nav-footer">
         <div class="nav-user">
@@ -928,6 +933,50 @@ tr:hover td:first-child { border-left-color: var(--gold); }
         </div>
       </div>
 
+      <!-- ══ NF-e ═══════════════════════════════════════════ -->
+      <div class="page" id="page-nfe">
+        <div class="page-header" style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:16px;">
+          <div>
+            <div class="page-title">Notas Fiscais</div>
+            <div class="page-subtitle" id="nfe-count-sub">—</div>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-outline btn-sm" onclick="exportNfe()">Exportar Excel</button>
+            <button class="btn btn-gold" onclick="openModalNfe()">+ Nova NF-e</button>
+          </div>
+        </div>
+
+        <div class="kpi-grid" id="nfe-kpis" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr));"></div>
+
+        <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px;">
+          <select class="form-select" id="nfe-filtro-status" onchange="renderNfe()" style="width:auto;">
+            <option value="">Todos os status</option>
+            <option value="emitida">Emitida</option>
+            <option value="cancelada">Cancelada</option>
+            <option value="inutilizada">Inutilizada</option>
+          </select>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Número</th>
+                <th>Cliente</th>
+                <th>Venda</th>
+                <th>Data Emissão</th>
+                <th>Valor</th>
+                <th>Chave de Acesso</th>
+                <th>Status</th>
+                <th>Arquivo</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="nfe-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
     </main>
   </div>
 </div>
@@ -1032,10 +1081,10 @@ tr:hover td:first-child { border-left-color: var(--gold); }
           <label class="form-label">Observações</label>
           <textarea class="form-textarea" id="fin-obs" placeholder="Informações adicionais..."></textarea>
         </div>
-        <div class="form-group full form-disabled">
-          <label class="form-label">Comprovante</label>
-          <input class="form-input" type="file" disabled>
-          <div class="form-hint">Disponível após migração para banco de dados.</div>
+        <div class="form-group full">
+          <label class="form-label">Comprovante (imagem ou PDF)</label>
+          <input class="form-input" type="file" id="fin-comprovante" accept=".jpg,.jpeg,.png,.pdf">
+          <div class="form-hint" id="fin-comprovante-atual"></div>
         </div>
       </div>
     </div>
@@ -1559,6 +1608,73 @@ tr:hover td:first-child { border-left-color: var(--gold); }
   </div>
 </div>
 
+<!-- Modal: NF-e -->
+<div class="modal-overlay" id="modal-nfe">
+  <div class="modal" style="max-width:760px;">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-nfe-titulo">Nova Nota Fiscal</div>
+      <button class="btn-close" onclick="closeModal('modal-nfe')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Número da NF-e *</label>
+          <input class="form-input" id="nfe-numero" type="number" placeholder="000001">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Série</label>
+          <input class="form-input" id="nfe-serie" type="number" placeholder="1" value="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Cliente *</label>
+          <select class="form-select" id="nfe-cliente"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Venda Vinculada</label>
+          <select class="form-select" id="nfe-venda"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data de Emissão *</label>
+          <input class="form-input" id="nfe-data" type="date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Valor (R$) *</label>
+          <input class="form-input" id="nfe-valor" type="number" step="0.01" placeholder="0,00">
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Chave de Acesso (44 dígitos)</label>
+          <input class="form-input" id="nfe-chave" placeholder="0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000" maxlength="54">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status *</label>
+          <select class="form-select" id="nfe-status">
+            <option value="emitida">Emitida</option>
+            <option value="cancelada">Cancelada</option>
+            <option value="inutilizada">Inutilizada</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Link do XML / PDF</label>
+          <input class="form-input" id="nfe-link" placeholder="https://...">
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Upload do Arquivo (XML ou PDF)</label>
+          <input class="form-input" id="nfe-arquivo" type="file" accept=".xml,.pdf">
+          <div class="form-hint">O arquivo será salvo no Supabase Storage.</div>
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Observações</label>
+          <textarea class="form-textarea" id="nfe-obs"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-nfe')">Cancelar</button>
+      <button class="btn btn-gold" onclick="salvarNfe()">Salvar Nota</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Alterar Senha -->
 <div class="modal-overlay" id="modal-senha">
   <div class="modal" style="max-width:420px;">
@@ -1813,7 +1929,8 @@ const pageMap = {
   'estoque-materiais':  renderEstoqueMateriais,
   'clientes':           renderClientes,
   'vendas':             renderVendas,
-  'producao':           renderProducao
+  'producao':           renderProducao,
+  'nfe':                renderNfe
 };
 
 function navigate(page) {
@@ -2104,6 +2221,14 @@ async function salvarFinanceiro() {
     } else {
       record.id = newId();
       await supa('financeiro', 'POST', record);
+    }
+    // Upload de comprovante se houver
+    const fileInput = document.getElementById('fin-comprovante');
+    if (fileInput && fileInput.files[0]) {
+      try {
+        const url = await uploadComprovante(editingFinId || record.id, fileInput.files[0]);
+        await supa('financeiro?id=eq.' + (editingFinId || record.id), 'PATCH', { comprovante_url: url });
+      } catch(e) { console.warn('Upload falhou:', e.message); }
     }
     clearCache(['financeiro']);
     closeModal('modal-financeiro');
@@ -3104,6 +3229,210 @@ function deleteOrdem(id) {
       clearCache(['ordens']); renderOrdens(); showToast('Ordem excluída.');
     } catch(e) { showToast('Erro ao excluir.'); }
   });
+}
+
+/* ══════════════════════════════════════════════════════════
+   SUPABASE STORAGE — UPLOAD
+══════════════════════════════════════════════════════════ */
+
+async function uploadArquivo(bucket, path, file) {
+  const { data, error } = await _sb.storage.from(bucket).upload(path, file, { upsert: true });
+  if (error) throw new Error(error.message);
+  const { data: url } = _sb.storage.from(bucket).getPublicUrl(path);
+  return url.publicUrl;
+}
+
+/* ══════════════════════════════════════════════════════════
+   NF-e
+══════════════════════════════════════════════════════════ */
+
+let editingNfeId = null;
+
+async function renderNfe() {
+  const [todasNfe, clientes, vendas] = await Promise.all([
+    getTable('nfe'),
+    getTable('clientes'),
+    getTable('vendas')
+  ]);
+
+  const sts = document.getElementById('nfe-filtro-status')?.value || '';
+  const items = sts ? todasNfe.filter(n => n.status === sts) : [...todasNfe];
+
+  const totalValor = todasNfe.filter(n => n.status === 'emitida').reduce((s,n) => s + (n.valor||0), 0);
+
+  document.getElementById('nfe-count-sub').textContent =
+    todasNfe.length + ' nota' + (todasNfe.length !== 1 ? 's' : '') + ' registrada' + (todasNfe.length !== 1 ? 's' : '');
+
+  document.getElementById('nfe-kpis').innerHTML = [
+    { label: 'Total Emitido', value: fmt(totalValor), sub: todasNfe.filter(n=>n.status==='emitida').length + ' notas emitidas' },
+    { label: 'Canceladas', value: todasNfe.filter(n=>n.status==='cancelada').length, sub: 'notas canceladas' },
+    { label: 'Total de Notas', value: todasNfe.length, sub: 'registradas no sistema' }
+  ].map(k => `<div class="kpi-card"><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div><div class="kpi-sub">${k.sub}</div></div>`).join('');
+
+  const tbody = document.getElementById('nfe-tbody');
+  if (!items.length) {
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">Nenhuma nota fiscal registrada.</div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = [...items].sort((a,b) => (b.numero||0) - (a.numero||0)).map(n => {
+    const cli = clientes.find(c => c.id === n.cliente_id);
+    const vnd = vendas.find(v => v.id === n.venda_id);
+    const chave = n.chave_acesso ? n.chave_acesso.replace(/(\d{4})/g,'$1 ').trim() : '—';
+    const arquivo = n.arquivo_url
+      ? `<a href="${n.arquivo_url}" target="_blank" style="color:var(--gold);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;">Abrir</a>`
+      : (n.link ? `<a href="${n.link}" target="_blank" style="color:var(--gold);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;">Link</a>` : '—');
+    return `<tr>
+      <td class="td-gold"><strong>${n.numero || '—'}</strong>${n.serie ? '-'+n.serie : ''}</td>
+      <td class="td-ivory">${cli ? cli.nome : '—'}</td>
+      <td style="color:var(--stone);">${vnd ? '#'+vnd.numero : '—'}</td>
+      <td>${fmtDate(n.data_emissao)}</td>
+      <td class="td-gold">${fmt(n.valor)}</td>
+      <td style="color:var(--stone);font-size:11px;font-family:monospace;">${chave.length > 30 ? chave.slice(0,30)+'…' : chave}</td>
+      <td>${statusBadge(n.status)}</td>
+      <td>${arquivo}</td>
+      <td>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-ghost btn-sm" onclick="editNfe('${n.id}')">Editar</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteNfe('${n.id}')">×</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function openModalNfe(id) {
+  editingNfeId = id || null;
+  document.getElementById('modal-nfe-titulo').textContent = id ? 'Editar Nota Fiscal' : 'Nova Nota Fiscal';
+
+  const [clientes, vendas] = await Promise.all([getTable('clientes'), getTable('vendas')]);
+
+  document.getElementById('nfe-cliente').innerHTML =
+    `<option value="">— Selecione —</option>` +
+    clientes.sort((a,b)=>(a.nome||'').localeCompare(b.nome||'')).map(c =>
+      `<option value="${c.id}">${c.nome}</option>`).join('');
+
+  document.getElementById('nfe-venda').innerHTML =
+    `<option value="">— Sem venda vinculada —</option>` +
+    vendas.sort((a,b)=>b.numero-a.numero).map(v => {
+      const cli = clientes.find(c => c.id === v.cliente_id);
+      return `<option value="${v.id}">#${v.numero} — ${cli ? cli.nome : '—'} — ${fmt(v.valor_final)}</option>`;
+    }).join('');
+
+  if (id) {
+    const rows = await supa('nfe', 'GET', null, '?id=eq.' + id);
+    const n = rows[0];
+    if (!n) return;
+    document.getElementById('nfe-numero').value = n.numero || '';
+    document.getElementById('nfe-serie').value = n.serie || 1;
+    document.getElementById('nfe-cliente').value = n.cliente_id || '';
+    document.getElementById('nfe-venda').value = n.venda_id || '';
+    document.getElementById('nfe-data').value = n.data_emissao || '';
+    document.getElementById('nfe-valor').value = n.valor || '';
+    document.getElementById('nfe-chave').value = n.chave_acesso || '';
+    document.getElementById('nfe-status').value = n.status || 'emitida';
+    document.getElementById('nfe-link').value = n.link || '';
+    document.getElementById('nfe-obs').value = n.obs || '';
+  } else {
+    ['nfe-numero','nfe-chave','nfe-link','nfe-obs'].forEach(i => document.getElementById(i).value = '');
+    document.getElementById('nfe-serie').value = 1;
+    document.getElementById('nfe-data').value = today();
+    document.getElementById('nfe-valor').value = '';
+    document.getElementById('nfe-status').value = 'emitida';
+  }
+  openModal('modal-nfe');
+}
+
+function editNfe(id) { openModalNfe(id); }
+
+async function salvarNfe() {
+  const numero = document.getElementById('nfe-numero').value;
+  const cli_id = document.getElementById('nfe-cliente').value;
+  const data   = document.getElementById('nfe-data').value;
+  if (!numero) { showToast('Informe o número da NF-e.'); return; }
+  if (!cli_id) { showToast('Selecione o cliente.'); return; }
+  if (!data)   { showToast('Informe a data de emissão.'); return; }
+
+  const record = {
+    numero:        parseInt(numero),
+    serie:         parseInt(document.getElementById('nfe-serie').value) || 1,
+    cliente_id:    cli_id,
+    venda_id:      document.getElementById('nfe-venda').value || null,
+    data_emissao:  data,
+    valor:         parseFloat(document.getElementById('nfe-valor').value) || 0,
+    chave_acesso:  document.getElementById('nfe-chave').value.replace(/\s/g,''),
+    status:        document.getElementById('nfe-status').value,
+    link:          document.getElementById('nfe-link').value.trim(),
+    obs:           document.getElementById('nfe-obs').value.trim()
+  };
+
+  // Upload do arquivo se houver
+  const fileInput = document.getElementById('nfe-arquivo');
+  if (fileInput.files[0]) {
+    try {
+      const file = fileInput.files[0];
+      const ext  = file.name.split('.').pop();
+      const path = `nfe/${record.numero}-${Date.now()}.${ext}`;
+      record.arquivo_url = await uploadArquivo('documentos', path, file);
+    } catch(e) {
+      showToast('Erro no upload: ' + e.message); return;
+    }
+  }
+
+  try {
+    if (editingNfeId) {
+      await supa('nfe?id=eq.' + editingNfeId, 'PATCH', record);
+    } else {
+      record.id = newId();
+      await supa('nfe', 'POST', record);
+    }
+    clearCache(['nfe']); closeModal('modal-nfe'); renderNfe(); showToast('Nota fiscal salva.');
+  } catch(e) { showToast('Erro ao salvar: ' + e.message); }
+}
+
+function deleteNfe(id) {
+  confirmDelete('Excluir esta nota fiscal?', async () => {
+    try {
+      await supa('nfe?id=eq.' + id, 'DELETE');
+      clearCache(['nfe']); renderNfe(); showToast('Nota excluída.');
+    } catch(e) { showToast('Erro ao excluir.'); }
+  });
+}
+
+async function exportNfe() {
+  loadXLSX(async () => {
+    const [nfes, clientes, vendas] = await Promise.all([getTable('nfe'), getTable('clientes'), getTable('vendas')]);
+    const rows = nfes.map(n => {
+      const cli = clientes.find(c => c.id === n.cliente_id);
+      const vnd = vendas.find(v => v.id === n.venda_id);
+      return {
+        'Número': n.numero,
+        'Série': n.serie,
+        'Cliente': cli ? cli.nome : '—',
+        'Venda': vnd ? '#' + vnd.numero : '—',
+        'Data Emissão': fmtDate(n.data_emissao),
+        'Valor': n.valor,
+        'Chave de Acesso': n.chave_acesso,
+        'Status': n.status,
+        'Link': n.link || n.arquivo_url || '—',
+        'Observações': n.obs
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'NF-e');
+    XLSX.writeFile(wb, 'IMPERYUM_NFe.xlsx');
+  });
+}
+
+/* ══════════════════════════════════════════════════════════
+   COMPROVANTE FINANCEIRO — Upload
+══════════════════════════════════════════════════════════ */
+
+async function uploadComprovante(id, file) {
+  const ext  = file.name.split('.').pop();
+  const path = `comprovantes/${id}.${ext}`;
+  return await uploadArquivo('documentos', path, file);
 }
 
 /* ══════════════════════════════════════════════════════════
