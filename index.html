@@ -592,8 +592,12 @@ tr:hover td:first-child { border-left-color: var(--gold); }
       <div class="nav-footer">
         <div class="nav-user">
           <div class="nav-user-name" id="nav-username">—</div>
+          <div style="font-size:10px;color:#3d3520;margin-top:2px;" id="nav-email"></div>
         </div>
-        <button class="btn-logout" onclick="doLogout()">Sair</button>
+        <div style="display:flex;gap:12px;align-items:center;margin-top:8px;">
+          <button class="btn-logout" onclick="openModalSenha()" style="color:#55503d;">Alterar senha</button>
+          <button class="btn-logout" onclick="doLogout()">Sair</button>
+        </div>
       </div>
     </nav>
 
@@ -1555,6 +1559,38 @@ tr:hover td:first-child { border-left-color: var(--gold); }
   </div>
 </div>
 
+<!-- Modal: Alterar Senha -->
+<div class="modal-overlay" id="modal-senha">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <div class="modal-title">Alterar Senha</div>
+      <button class="btn-close" onclick="closeModal('modal-senha')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label class="form-label">Nova Senha *</label>
+          <input class="form-input" id="senha-nova" type="password" placeholder="Mínimo 6 caracteres">
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Confirmar Nova Senha *</label>
+          <input class="form-input" id="senha-confirma" type="password" placeholder="Repita a nova senha">
+        </div>
+        <div class="form-group full" id="senha-erro" style="display:none;">
+          <div style="background:rgba(160,48,48,0.15);border:1px solid rgba(160,48,48,0.4);padding:10px 14px;font-size:12px;color:#d07070;" id="senha-erro-msg"></div>
+        </div>
+        <div class="form-group full" id="senha-ok" style="display:none;">
+          <div style="background:rgba(42,102,64,0.15);border:1px solid rgba(42,102,64,0.4);padding:10px 14px;font-size:12px;color:#7bcf9a;">Senha alterada com sucesso.</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-senha')">Cancelar</button>
+      <button class="btn btn-gold" onclick="alterarSenha()">Alterar Senha</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ══════════════════════════════════════════════════════════
    SUPABASE — CONFIGURAÇÃO
@@ -1717,7 +1753,52 @@ function showApp() {
   document.getElementById('screen-login').style.display = 'none';
   document.getElementById('screen-app').style.display = 'block';
   document.getElementById('nav-username').textContent = currentUser.nome;
+  document.getElementById('nav-email').textContent = currentUser.email;
   navigate('dashboard');
+}
+
+function openModalSenha() {
+  document.getElementById('senha-nova').value = '';
+  document.getElementById('senha-confirma').value = '';
+  document.getElementById('senha-erro').style.display = 'none';
+  document.getElementById('senha-ok').style.display = 'none';
+  openModal('modal-senha');
+}
+
+async function alterarSenha() {
+  const nova     = document.getElementById('senha-nova').value;
+  const confirma = document.getElementById('senha-confirma').value;
+  const erroEl   = document.getElementById('senha-erro');
+  const erroMsg  = document.getElementById('senha-erro-msg');
+  const okEl     = document.getElementById('senha-ok');
+
+  erroEl.style.display = 'none';
+  okEl.style.display = 'none';
+
+  if (!nova) {
+    erroMsg.textContent = 'Informe a nova senha.';
+    erroEl.style.display = 'block'; return;
+  }
+  if (nova.length < 6) {
+    erroMsg.textContent = 'A senha deve ter no mínimo 6 caracteres.';
+    erroEl.style.display = 'block'; return;
+  }
+  if (nova !== confirma) {
+    erroMsg.textContent = 'As senhas não coincidem.';
+    erroEl.style.display = 'block'; return;
+  }
+
+  const { error } = await _sb.auth.updateUser({ password: nova });
+
+  if (error) {
+    erroMsg.textContent = 'Erro ao alterar senha: ' + error.message;
+    erroEl.style.display = 'block'; return;
+  }
+
+  okEl.style.display = 'block';
+  document.getElementById('senha-nova').value = '';
+  document.getElementById('senha-confirma').value = '';
+  setTimeout(() => closeModal('modal-senha'), 2000);
 }
 
 /* ══════════════════════════════════════════════════════════
