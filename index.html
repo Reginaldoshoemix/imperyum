@@ -2930,6 +2930,7 @@ async function salvarVenda() {
 }
 
 async function renderVendas() {
+  clearCache(['vendas']);
   const todasVendas = await getTable('vendas');
   const sts = document.getElementById('vnd-filtro-status')?.value || '';
   let vendas = sts ? todasVendas.filter(v => v.status === sts) : [...todasVendas];
@@ -2947,7 +2948,7 @@ async function renderVendas() {
     { label:'Margem Bruta',     value: fmt(margem),  cls:'',     dim: false, sub: 'valor – custo do produto' },
     { label:'Lucro Estimado',   value: fmt(lucro),   cls:'',     dim: true,  sub: 'antes de impostos' },
     { label:'Ticket Médio',     value: fmt(ticket),  cls:'dim',  dim: true,  sub: 'por pedido' },
-    { label:'Total de Pedidos', value: total,        cls:'',     dim: false, sub: (db.vendas||[]).filter(v=>v.status==='entregue').length + ' entregues' }
+    { label:'Total de Pedidos', value: total,        cls:'',     dim: false, sub: todasVendas.filter(v=>v.status==='entregue').length + ' entregues' }
   ].map(k => `<div class="kpi-card"><div class="kpi-label">${k.label}</div><div class="kpi-value ${k.cls}">${k.value}</div><div class="kpi-sub">${k.sub}</div></div>`).join('');
 
   const clientes = await getTable('clientes');
