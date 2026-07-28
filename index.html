@@ -1751,6 +1751,15 @@ function closeNav() {
 
 async function renderDashboard() {
   document.getElementById('dash-kpis').innerHTML = '<div style="color:#3d3520;font-size:12px;padding:20px 0;">Carregando...</div>';
+  try {
+    const teste = await supa('financeiro', 'GET', null, '?limit=1');
+    console.log('Supabase OK:', teste);
+  } catch(e) {
+    document.getElementById('dash-kpis').innerHTML = `<div style="background:#1a0808;border:1px solid #a03030;padding:16px;font-size:12px;color:#d07070;grid-column:1/-1;">
+      <strong>Erro de conexão com Supabase:</strong><br>${e.message}
+    </div>`;
+    return;
+  }
   const [variantes, vendas, clientes, fin, produtos] = await Promise.all([
     getTable('variantes'),
     getTable('vendas'),
